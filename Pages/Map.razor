@@ -1,0 +1,47 @@
+@page "/map"
+@inject MapService MapService
+@inject IJSRuntime JSRuntime
+
+<h3>Map</h3>
+
+<div id="map" style="height: 600px;"></div>
+<button @onclick="ZoomIn">Zoom In</button>
+<button @onclick="ZoomOut">Zoom Out</button>
+
+@code {
+    private IJSObjectReference map;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var mapData = await MapService.GetMapDataAsync();
+        var geoJsonData = await MapService.GetGeoJsonDataAsync();
+
+        // Initialize Leaflet map
+        map = await JSRuntime.InvokeAsync<IJSObjectReference>("initializeMap", new { center = new[] { 51.505, -0.09 }, zoom = 13 });
+
+        // Add local tile layer
+        await JSRuntime.InvokeVoidAsync("addTileLayer", map, "wwwroot/lib/leaflet/tiles/{z}/{x}/{y}.png");
+
+        // Add markers from map data
+        foreach (var data in mapData)
+        {
+            var coordinates = data.Coordinates.Split(',');
+            var lat = double.Parse(coordinates[0].Trim('('));
+            var lng = double.Parse(coordinates[1].Trim(')'));
+            await JSRuntime.InvokeVoidAsync("addMarker", map, new[] { lat, lng }, data.Name);
+        }
+
+        // Add GeoJSON layer
+        await JSRuntime.InvokeVoidAsync("addGeoJsonLayer", map, geoJsonData);
+    }
+
+    private async Task ZoomIn()
+    {
+        await JSRuntime.InvokeVoidAsync("zoomIn", map);
+    }
+
+    private async Task ZoomOut()
+    {
+        await JSRuntime.InvokeVoidAsync("zoomOut", map);
+    }
+}
